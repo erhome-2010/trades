@@ -27,13 +27,29 @@ tendência adicionado nesta versão).
 | `InpRiskPercentPerTrade` | 2.0% |
 | `InpMaxConcurrentPositions` | 3 |
 | `InpMaxSpreadPoints` | 3000 (ajustado manualmente em 27/07, padrão de fábrica no código é 500) |
-| `InpDailyLossPercent` (DL) | **10.0%** (ajustado manualmente em 27/07, padrão de fábrica no código é 3.0%) |
+| `InpDailyLossPercent` (DL) | **20.0%** (ajustado manualmente em 27/07, subiu de 3%→10%→20% no mesmo dia; padrão de fábrica no código é 3.0%) |
 | `InpDailyProfitTargetUSD` (DG) | $10.00 |
 | `InpMaxDrawdownPercent` | 12.0% |
+| `InpUseHedgeProtection` | **true** (ligado manualmente em 27/07 à noite; padrão de fábrica no código é `false`) |
+| `InpHedgeTriggerPercent` / `InpHedgeVolumeRatio` | 1.5% / 1.0 (valores padrão, não alterados) |
+| `InpHedgeRecoveryRatio` / `InpHedgeConvertRatio` | 0.3 / 1.2 (valores padrão, não alterados) |
 
-> Nota: `InpMaxSpreadPoints` e `InpDailyLossPercent` foram alterados ao
-> vivo pelos Inputs do MT5 e ainda não foram levados para o `.set`
-> versionado — atualizar o arquivo quando estabilizarmos os valores.
+> Nota: `InpMaxSpreadPoints`, `InpDailyLossPercent` e `InpUseHedgeProtection`
+> foram alterados ao vivo pelos Inputs do MT5 e ainda não foram levados
+> para o `.set` versionado — atualizar o arquivo quando estabilizarmos os
+> valores.
+>
+> **Atenção ao DL em 20%:** numa conta de ~$28, isso permite até ~$5.6 de
+> perda num único dia antes de travar — bem mais espaço que o inicial de
+> 3%. É um teste deliberado do usuário para observar mais pregões sem
+> interrupção precoce, não um valor recomendado para conta real.
+>
+> **Hedge com esta equity:** o gatilho de 1.5% equivale a ~$0.40-0.45 de
+> perda flutuante — muito próximo da distância de stop loss já usada nas
+> operações (que variou de $0.17 a $1.03 nos trades do dia 1). Na prática
+> isso deve fazer o hedge disparar em praticamente toda operação
+> perdedora, quase imediatamente após abrir, não só em perdas grandes.
+> Efeito esperado, a acompanhar nos próximos pregões.
 
 ## Pregões
 
