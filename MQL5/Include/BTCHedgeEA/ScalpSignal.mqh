@@ -26,6 +26,11 @@ private:
    int             m_hAtr;
 
    datetime        m_lastEvalBarTime;
+   bool            m_evaluatedThisCall;
+   double          m_lastClose;
+   double          m_lastUpper;
+   double          m_lastLower;
+   double          m_lastRsi;
 
    double GetBuffer(const int handle,const int bufferIndex,const int shift)
      {
@@ -43,6 +48,11 @@ public:
       m_hRsi   = INVALID_HANDLE;
       m_hAtr   = INVALID_HANDLE;
       m_lastEvalBarTime = 0;
+      m_evaluatedThisCall = false;
+      m_lastClose = 0.0;
+      m_lastUpper = 0.0;
+      m_lastLower = 0.0;
+      m_lastRsi   = 0.0;
      }
 
    ~CScalpSignal(void)
@@ -92,11 +102,21 @@ public:
       return (atr == EMPTY_VALUE) ? 0.0 : atr;
      }
 
+   // true somente na chamada em que uma barra nova foi de fato avaliada
+   // (util para logging de diagnostico sem duplicar por tick)
+   bool WasEvaluatedThisCall(void) const { return m_evaluatedThisCall; }
+   double LastClose(void) const { return m_lastClose; }
+   double LastUpper(void) const { return m_lastUpper; }
+   double LastLower(void) const { return m_lastLower; }
+   double LastRsi(void)   const { return m_lastRsi; }
+
    // Reversao a media: fecha fora da banda + RSI em extremo -> aposta na volta ao centro.
    // So avalia uma vez por barra fechada do timeframe de entrada (evita reabrir o mesmo
    // sinal a cada tick dentro da mesma barra).
    int GetEntrySignal(void)
      {
+      m_evaluatedThisCall = false;
+
       if(!IsReady())
          return 0;
 
@@ -112,6 +132,12 @@ public:
 
       if(upper1 == EMPTY_VALUE || lower1 == EMPTY_VALUE || rsi1 == EMPTY_VALUE)
          return 0;
+
+      m_evaluatedThisCall = true;
+      m_lastClose = close1;
+      m_lastUpper = upper1;
+      m_lastLower = lower1;
+      m_lastRsi   = rsi1;
 
       if(close1 <= lower1 && rsi1 <= m_rsiOversold)
          return 1;  // compra - espera reversao para cima

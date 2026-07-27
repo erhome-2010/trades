@@ -71,6 +71,9 @@ input bool                InpEnableDashboard    = true;       // Exibe painel no
 input bool                InpEnablePushNotify   = false;      // Envia push notification em eventos importantes
 input bool                InpEnableEmailNotify  = false;      // Envia e-mail em eventos importantes
 
+//--- Inputs: diagnostico
+input bool                InpVerboseLogging     = true;       // Loga no Diario/Experts os valores de Bandas/RSI a cada barra fechada (util para depurar por que nao esta operando)
+
 //--- Objetos globais do EA
 CRiskManager   g_risk;
 CScalpSignal   g_scalp;
@@ -83,6 +86,7 @@ long           g_hedgeMagic;
 ENUM_EA_STATE  g_lastState  = EA_STATE_TRADING;
 int            g_tradesToday = 0;
 datetime       g_tradesDay   = 0;
+bool           g_notReadyWarned = false;
 
 //+------------------------------------------------------------------+
 void NotifyEvent(const string message)
@@ -144,15 +148,42 @@ int CountAllMainPositions(void)
 //+------------------------------------------------------------------+
 void TryOpenNewPosition(void)
   {
-   if(!SpreadOk())
-      return;
-
-   if(CountAllMainPositions() >= InpMaxConcurrentPositions)
-      return;
+   if(InpVerboseLogging && !g_scalp.IsReady())
+     {
+      if(!g_notReadyWarned)
+        {
+         PrintFormat("BTCScalperEA [debug] aguardando historico suficiente do indicador (BB periodo=%d) em %s %s",
+                     InpBBPeriod, _Symbol, EnumToString(InpEntryTimeframe));
+         g_notReadyWarned = true;
+        }
+     }
+   else
+      g_notReadyWarned = false;
 
    int signal = g_scalp.GetEntrySignal();
+
+   if(InpVerboseLogging && g_scalp.WasEvaluatedThisCall())
+      PrintFormat("BTCScalperEA [debug] barra fechada -> close=%.2f upper=%.2f lower=%.2f rsi=%.2f (oversold<=%.1f overbought>=%.1f) sinal=%d spread=%d",
+                  g_scalp.LastClose(), g_scalp.LastUpper(), g_scalp.LastLower(), g_scalp.LastRsi(),
+                  InpRsiOversold, InpRsiOverbought, signal, (int)SymbolInfoInteger(_Symbol, SYMBOL_SPREAD));
+
    if(signal == 0)
       return;
+
+   if(!SpreadOk())
+     {
+      if(InpVerboseLogging)
+         PrintFormat("BTCScalperEA [debug] sinal=%d encontrado mas bloqueado por spread: atual=%d pontos, maximo=%.0f",
+                     signal, (int)SymbolInfoInteger(_Symbol, SYMBOL_SPREAD), InpMaxSpreadPoints);
+      return;
+     }
+
+   if(CountAllMainPositions() >= InpMaxConcurrentPositions)
+     {
+      if(InpVerboseLogging)
+         Print("BTCScalperEA [debug] sinal encontrado mas numero maximo de posicoes concorrentes atingido");
+      return;
+     }
 
    double atr = g_scalp.AtrValue();
    if(atr <= 0.0)
