@@ -68,7 +68,7 @@ public:
      {
       m_chartId = chartId;
       m_prefix  = BTCEA_DASH_PREFIX + uniqueSuffix + "_";
-      CreateBackground(230, 145);
+      CreateBackground(230, 165);
      }
 
    void Remove(void)
@@ -79,7 +79,8 @@ public:
 
    void Update(const string eaName,const ENUM_EA_STATE state,const double dailyPnlPercent,
                const double drawdownPercent,const double equity,const double balance,
-               const int mainBuy,const int mainSell,const int hedgeCount)
+               const int mainBuy,const int mainSell,const int hedgeCount,
+               const string extraLine = "")
      {
       color stateColor = clrLimeGreen;
       string stateText  = "OPERANDO";
@@ -96,6 +97,9 @@ public:
       CreateLabel("DD", m_x, m_y + 60, StringFormat("Drawdown (pico): %.2f%%", drawdownPercent), clrKhaki);
       CreateLabel("Equity", m_x, m_y + 80, StringFormat("Equity: %.2f  Balance: %.2f", equity, balance), clrWhite);
       CreateLabel("Pos", m_x, m_y + 100, StringFormat("Posicoes -> Compra: %d  Venda: %d  Hedge: %d", mainBuy, mainSell, hedgeCount), clrWhite);
+
+      if(extraLine != "")
+         CreateLabel("Extra", m_x, m_y + 120, extraLine, clrAqua);
 
       ChartRedraw(m_chartId);
      }
