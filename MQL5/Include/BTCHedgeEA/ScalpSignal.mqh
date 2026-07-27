@@ -21,9 +21,14 @@ private:
    double          m_rsiOverbought;
    int             m_atrPeriod;
 
+   bool            m_useTrendFilter;
+   ENUM_TIMEFRAMES m_trendFilterTF;
+   int             m_trendFilterPeriod;
+
    int             m_hBands;
    int             m_hRsi;
    int             m_hAtr;
+   int             m_hTrendFilter;
 
    datetime        m_lastEvalBarTime;
    bool            m_evaluatedThisCall;
@@ -31,6 +36,7 @@ private:
    double          m_lastUpper;
    double          m_lastLower;
    double          m_lastRsi;
+   double          m_lastTrendFilterMa;
 
    double GetBuffer(const int handle,const int bufferIndex,const int shift)
      {
@@ -44,15 +50,17 @@ private:
 public:
    CScalpSignal(void)
      {
-      m_hBands = INVALID_HANDLE;
-      m_hRsi   = INVALID_HANDLE;
-      m_hAtr   = INVALID_HANDLE;
+      m_hBands       = INVALID_HANDLE;
+      m_hRsi         = INVALID_HANDLE;
+      m_hAtr         = INVALID_HANDLE;
+      m_hTrendFilter = INVALID_HANDLE;
       m_lastEvalBarTime = 0;
       m_evaluatedThisCall = false;
       m_lastClose = 0.0;
       m_lastUpper = 0.0;
       m_lastLower = 0.0;
       m_lastRsi   = 0.0;
+      m_lastTrendFilterMa = 0.0;
      }
 
    ~CScalpSignal(void)
@@ -61,7 +69,8 @@ public:
      }
 
    bool Init(const string symbol,const ENUM_TIMEFRAMES tf,const int bbPeriod,const double bbDeviation,
-             const int rsiPeriod,const double rsiOversold,const double rsiOverbought,const int atrPeriod)
+             const int rsiPeriod,const double rsiOversold,const double rsiOverbought,const int atrPeriod,
+             const bool useTrendFilter,const ENUM_TIMEFRAMES trendFilterTF,const int trendFilterPeriod)
      {
       m_symbol        = symbol;
       m_tf            = tf;
@@ -71,6 +80,9 @@ public:
       m_rsiOversold   = rsiOversold;
       m_rsiOverbought = rsiOverbought;
       m_atrPeriod     = atrPeriod;
+      m_useTrendFilter    = useTrendFilter;
+      m_trendFilterTF     = trendFilterTF;
+      m_trendFilterPeriod = trendFilterPeriod;
 
       m_hBands = iBands(m_symbol, m_tf, m_bbPeriod, 0, m_bbDeviation, PRICE_CLOSE);
       m_hRsi   = iRSI(m_symbol, m_tf, m_rsiPeriod, PRICE_CLOSE);
@@ -81,19 +93,33 @@ public:
          Print("BTCScalperEA: falha ao criar handles de indicadores");
          return false;
         }
+
+      if(m_useTrendFilter)
+        {
+         m_hTrendFilter = iMA(m_symbol, m_trendFilterTF, m_trendFilterPeriod, 0, MODE_EMA, PRICE_CLOSE);
+         if(m_hTrendFilter == INVALID_HANDLE)
+           {
+            Print("BTCScalperEA: falha ao criar handle do filtro de tendencia");
+            return false;
+           }
+        }
       return true;
      }
 
    void Release(void)
      {
-      if(m_hBands != INVALID_HANDLE) IndicatorRelease(m_hBands);
-      if(m_hRsi   != INVALID_HANDLE) IndicatorRelease(m_hRsi);
-      if(m_hAtr   != INVALID_HANDLE) IndicatorRelease(m_hAtr);
+      if(m_hBands       != INVALID_HANDLE) IndicatorRelease(m_hBands);
+      if(m_hRsi         != INVALID_HANDLE) IndicatorRelease(m_hRsi);
+      if(m_hAtr         != INVALID_HANDLE) IndicatorRelease(m_hAtr);
+      if(m_hTrendFilter != INVALID_HANDLE) IndicatorRelease(m_hTrendFilter);
      }
 
    bool IsReady(void)
      {
-      return BarsCalculated(m_hBands) > m_bbPeriod && BarsCalculated(m_hRsi) > 2 && BarsCalculated(m_hAtr) > 2;
+      bool baseReady = BarsCalculated(m_hBands) > m_bbPeriod && BarsCalculated(m_hRsi) > 2 && BarsCalculated(m_hAtr) > 2;
+      if(!m_useTrendFilter)
+         return baseReady;
+      return baseReady && BarsCalculated(m_hTrendFilter) > m_trendFilterPeriod;
      }
 
    double AtrValue(void)
@@ -109,6 +135,7 @@ public:
    double LastUpper(void) const { return m_lastUpper; }
    double LastLower(void) const { return m_lastLower; }
    double LastRsi(void)   const { return m_lastRsi; }
+   double LastTrendFilterMa(void) const { return m_lastTrendFilterMa; }
 
    // Reversao a media: fecha fora da banda + RSI em extremo -> aposta na volta ao centro.
    // So avalia uma vez por barra fechada do timeframe de entrada (evita reabrir o mesmo
@@ -133,16 +160,30 @@ public:
       if(upper1 == EMPTY_VALUE || lower1 == EMPTY_VALUE || rsi1 == EMPTY_VALUE)
          return 0;
 
+      double trendMa = 0.0;
+      if(m_useTrendFilter)
+        {
+         trendMa = GetBuffer(m_hTrendFilter, 0, 0); // valor mais recente (barra atual em formacao) do TF maior
+         if(trendMa == EMPTY_VALUE)
+            return 0;
+        }
+
       m_evaluatedThisCall = true;
       m_lastClose = close1;
       m_lastUpper = upper1;
       m_lastLower = lower1;
       m_lastRsi   = rsi1;
+      m_lastTrendFilterMa = trendMa;
 
-      if(close1 <= lower1 && rsi1 <= m_rsiOversold)
+      // Filtro de tendencia: nao compra "faca caindo" numa tendencia de baixa confirmada
+      // (preco abaixo da media do timeframe maior), nem vende contra uma tendencia de alta confirmada.
+      bool blockBuy  = m_useTrendFilter && (close1 < trendMa);
+      bool blockSell = m_useTrendFilter && (close1 > trendMa);
+
+      if(close1 <= lower1 && rsi1 <= m_rsiOversold && !blockBuy)
          return 1;  // compra - espera reversao para cima
 
-      if(close1 >= upper1 && rsi1 >= m_rsiOverbought)
+      if(close1 >= upper1 && rsi1 >= m_rsiOverbought && !blockSell)
          return -1; // venda - espera reversao para baixo
 
       return 0;

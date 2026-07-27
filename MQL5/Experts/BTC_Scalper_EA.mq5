@@ -40,6 +40,11 @@ input double             InpRsiOversold        = 25.0;       // RSI abaixo disso
 input double             InpRsiOverbought      = 75.0;       // RSI acima disso = sobrecomprado (gatilho de venda)
 input int                InpAtrPeriod          = 14;         // Periodo do ATR (usado so para o stop loss)
 
+//--- Inputs: filtro de tendencia (evita comprar/vender contra uma tendencia forte)
+input bool                InpUseTrendFilter     = true;       // Habilita filtro de tendencia (recomendado)
+input ENUM_TIMEFRAMES   InpTrendFilterTimeframe = PERIOD_M15; // Timeframe da media usada como filtro de tendencia
+input int                InpTrendFilterPeriod  = 50;          // Periodo da media (EMA) usada como filtro de tendencia
+
 //--- Inputs: stop loss e alvo de lucro
 input double             InpAtrSlMultiplier    = 1.0;        // Stop Loss = ATR * multiplicador (mantenha apertado)
 input double             InpTargetProfitUSD    = 1.0;        // Alvo de lucro FIXO em dolares por trade (ex: 1.0 = tenta fechar em +$1)
@@ -163,9 +168,10 @@ void TryOpenNewPosition(void)
    int signal = g_scalp.GetEntrySignal();
 
    if(InpVerboseLogging && g_scalp.WasEvaluatedThisCall())
-      PrintFormat("BTCScalperEA [debug] barra fechada -> close=%.2f upper=%.2f lower=%.2f rsi=%.2f (oversold<=%.1f overbought>=%.1f) sinal=%d spread=%d",
+      PrintFormat("BTCScalperEA [debug] barra fechada -> close=%.2f upper=%.2f lower=%.2f rsi=%.2f (oversold<=%.1f overbought>=%.1f) filtroTendencia(%s)=%.2f sinal=%d spread=%d",
                   g_scalp.LastClose(), g_scalp.LastUpper(), g_scalp.LastLower(), g_scalp.LastRsi(),
-                  InpRsiOversold, InpRsiOverbought, signal, (int)SymbolInfoInteger(_Symbol, SYMBOL_SPREAD));
+                  InpRsiOversold, InpRsiOverbought, (InpUseTrendFilter ? EnumToString(InpTrendFilterTimeframe) : "off"),
+                  g_scalp.LastTrendFilterMa(), signal, (int)SymbolInfoInteger(_Symbol, SYMBOL_SPREAD));
 
    if(signal == 0)
       return;
@@ -277,7 +283,8 @@ int OnInit(void)
    g_risk.Init();
 
    if(!g_scalp.Init(_Symbol, InpEntryTimeframe, InpBBPeriod, InpBBDeviation, InpRsiPeriod,
-                     InpRsiOversold, InpRsiOverbought, InpAtrPeriod))
+                     InpRsiOversold, InpRsiOverbought, InpAtrPeriod,
+                     InpUseTrendFilter, InpTrendFilterTimeframe, InpTrendFilterPeriod))
       return(INIT_FAILED);
 
    g_hedge.Configure(_Symbol, InpMagicNumber, g_hedgeMagic, InpHedgeTriggerPercent, InpHedgeVolumeRatio,

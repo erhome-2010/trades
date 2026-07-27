@@ -184,6 +184,19 @@ centro, com alvo de lucro **fixo em dólares** por trade.
 | `InpRsiOverbought` | `75.0` | RSI acima deste valor + fechamento na banda superior = sinal de **venda** (aposta na reversão para baixo). |
 | `InpAtrPeriod` | `14` | Período do ATR, usado só para calcular a distância do Stop Loss. |
 
+### Filtro de tendência (evita comprar "faca caindo")
+
+Adicionado depois de observar ao vivo o EA comprar duas vezes seguidas
+durante uma queda forte e contínua do BTC — a reversão à média pura não
+tem noção de tendência maior, então ela aposta contra movimentos fortes
+sem nenhuma proteção. Este filtro resolve isso.
+
+| Parâmetro | Padrão | O que é |
+|---|---|---|
+| `InpUseTrendFilter` | `true` | Liga/desliga o filtro. Com ele ligado, só permite **compra** se o preço estiver acima da média de tendência (não compra contra uma queda confirmada), e só permite **venda** se o preço estiver abaixo dela (não vende contra uma alta confirmada). Reduz o número de sinais, mas evita o cenário exato que causou a perda observada. |
+| `InpTrendFilterTimeframe` | `M15` | Timeframe da média usada como referência de tendência maior (deve ser mais alto que `InpEntryTimeframe`). |
+| `InpTrendFilterPeriod` | `50` | Período da EMA usada como referência. |
+
 ### Stop loss e alvo de lucro
 
 | Parâmetro | Padrão | O que é |
