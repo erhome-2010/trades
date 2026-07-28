@@ -1,0 +1,652 @@
+<title>BTC HedgeGrid — Painel</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  .hg-root {
+    color-scheme: light;
+    --surface-1:      #fcfcfb;
+    --surface-page:   #f9f9f7;
+    --text-primary:   #0b0b0b;
+    --text-secondary: #52514e;
+    --text-muted:     #898781;
+    --gridline:       #e1e0d9;
+    --baseline:       #c3c2b7;
+    --border:         rgba(11,11,11,0.10);
+    --series-buy:     #2a78d6;
+    --series-sell:    #eb6834;
+    --good:           #0ca30c;
+    --warning:        #fab219;
+    --serious:        #ec835a;
+    --critical:       #d03b3b;
+    --card-shadow:    0 1px 2px rgba(11,11,11,0.06), 0 1px 1px rgba(11,11,11,0.04);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) .hg-root {
+      color-scheme: dark;
+      --surface-1:      #1a1a19;
+      --surface-page:   #0d0d0d;
+      --text-primary:   #ffffff;
+      --text-secondary: #c3c2b7;
+      --text-muted:     #898781;
+      --gridline:       #2c2c2a;
+      --baseline:       #383835;
+      --border:         rgba(255,255,255,0.10);
+      --series-buy:     #3987e5;
+      --series-sell:    #d95926;
+      --card-shadow:    0 1px 2px rgba(0,0,0,0.4);
+    }
+  }
+  :root[data-theme="dark"] .hg-root {
+    color-scheme: dark;
+    --surface-1:      #1a1a19;
+    --surface-page:   #0d0d0d;
+    --text-primary:   #ffffff;
+    --text-secondary: #c3c2b7;
+    --text-muted:     #898781;
+    --gridline:       #2c2c2a;
+    --baseline:       #383835;
+    --border:         rgba(255,255,255,0.10);
+    --series-buy:     #3987e5;
+    --series-sell:    #d95926;
+    --card-shadow:    0 1px 2px rgba(0,0,0,0.4);
+  }
+
+  .hg-root {
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    background: var(--surface-page);
+    color: var(--text-primary);
+    min-height: 100vh;
+    padding: 20px 24px 60px;
+    box-sizing: border-box;
+  }
+  .hg-root * { box-sizing: border-box; }
+  .hg-max { max-width: 1180px; margin: 0 auto; }
+
+  .hg-header { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; margin-bottom: 18px; }
+  .hg-title { font-size: 20px; font-weight: 700; margin: 0; }
+  .hg-subtitle { font-size: 12.5px; color: var(--text-secondary); margin-top: 2px; }
+  .hg-actions { display:flex; gap:8px; align-items:center; flex-wrap: wrap; }
+
+  .hg-btn {
+    font: inherit; font-size: 13px; font-weight: 600; cursor: pointer;
+    padding: 8px 14px; border-radius: 8px; border: 1px solid var(--border);
+    background: var(--surface-1); color: var(--text-primary);
+  }
+  .hg-btn:hover { filter: brightness(1.05); }
+  .hg-btn.primary { background: var(--series-buy); color: #fff; border-color: transparent; }
+  .hg-btn.ghost { background: transparent; }
+  .hg-btn:disabled { opacity: 0.45; cursor: default; }
+
+  .hg-badge { display:inline-flex; align-items:center; gap:6px; font-size:12.5px; font-weight:700; padding: 5px 11px; border-radius: 999px; }
+  .hg-badge .dot { width:8px; height:8px; border-radius:50%; }
+  .hg-badge.ok      { background: rgba(12,163,12,0.12); color: var(--good); }
+  .hg-badge.ok .dot { background: var(--good); }
+  .hg-badge.bad      { background: rgba(208,59,59,0.12); color: var(--critical); }
+  .hg-badge.bad .dot { background: var(--critical); }
+  .hg-badge.warn      { background: rgba(250,178,25,0.16); color: #9a6b00; }
+  .hg-badge.warn .dot { background: var(--warning); }
+  @media (prefers-color-scheme: dark) { .hg-badge.warn { color: var(--warning); } }
+  :root[data-theme="dark"] .hg-badge.warn { color: var(--warning); }
+
+  .hg-empty {
+    background: var(--surface-1); border: 1px solid var(--border); border-radius: 14px;
+    padding: 40px 28px; text-align: center; color: var(--text-secondary); font-size: 14px; line-height: 1.7;
+  }
+  .hg-empty code { background: var(--gridline); padding: 2px 6px; border-radius: 4px; font-size: 12.5px; }
+
+  .hg-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(160px,1fr)); gap: 12px; margin-bottom: 18px; }
+  .hg-tile {
+    background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px;
+    padding: 14px 16px; box-shadow: var(--card-shadow);
+  }
+  .hg-tile .lbl { font-size: 11.5px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: .03em; }
+  .hg-tile .val { font-size: 22px; font-weight: 700; margin-top: 4px; font-variant-numeric: tabular-nums; }
+  .hg-tile .sub { font-size: 12px; color: var(--text-secondary); margin-top: 2px; font-variant-numeric: tabular-nums; }
+  .hg-tile .val.good { color: var(--good); }
+  .hg-tile .val.bad { color: var(--critical); }
+
+  .hg-section { background: var(--surface-1); border: 1px solid var(--border); border-radius: 14px; padding: 18px 20px; margin-bottom: 16px; box-shadow: var(--card-shadow); }
+  .hg-section h2 { font-size: 14.5px; margin: 0 0 4px; }
+  .hg-section .hint { font-size: 12px; color: var(--text-muted); margin-bottom: 14px; }
+
+  .hg-cols2 { display:grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 760px) { .hg-cols2 { grid-template-columns: 1fr; } }
+
+  .hg-legend { display:flex; gap:16px; font-size:12.5px; color: var(--text-secondary); margin-bottom: 10px; }
+  .hg-legend .item { display:flex; align-items:center; gap:6px; }
+  .hg-legend .swatch { width:10px; height:10px; border-radius: 2px; }
+
+  .hg-side-row { display:flex; justify-content: space-between; align-items:center; padding: 9px 0; border-bottom: 1px solid var(--gridline); font-size: 13px; }
+  .hg-side-row:last-child { border-bottom: none; }
+  .hg-side-row .name { display:flex; align-items:center; gap:8px; font-weight: 600; }
+  .hg-side-row .swatch { width:10px; height:10px; border-radius:3px; }
+  .hg-side-row .metrics { display:flex; gap:18px; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+  .hg-side-row .metrics b { color: var(--text-primary); }
+
+  table.hg-table { width:100%; border-collapse: collapse; font-size: 12.5px; }
+  table.hg-table th { text-align:left; font-size: 11px; text-transform: uppercase; letter-spacing:.03em; color: var(--text-muted); font-weight:600; padding: 6px 10px; border-bottom: 1px solid var(--baseline); position: sticky; top:0; background: var(--surface-1); }
+  table.hg-table td { padding: 7px 10px; border-bottom: 1px solid var(--gridline); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  table.hg-table tbody tr:hover { background: var(--surface-page); }
+  .hg-table-wrap { max-height: 360px; overflow: auto; border: 1px solid var(--border); border-radius: 10px; }
+  .hg-reason { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 999px; }
+  .hg-reason.TP { background: rgba(12,163,12,0.12); color: var(--good); }
+  .hg-reason.SL, .hg-reason.STOPOUT { background: rgba(208,59,59,0.12); color: var(--critical); }
+  .hg-reason.EA, .hg-reason.MANUAL, .hg-reason.OUTRO { background: var(--gridline); color: var(--text-secondary); }
+  .hg-pl.good { color: var(--good); font-weight:600; }
+  .hg-pl.bad { color: var(--critical); font-weight:600; }
+
+  .hg-svg text { fill: var(--text-muted); font-size: 10.5px; font-family: inherit; }
+  .hg-svg .axis-line { stroke: var(--baseline); stroke-width: 1; }
+  .hg-svg .grid-line { stroke: var(--gridline); stroke-width: 1; }
+  .hg-tooltip {
+    position: fixed; pointer-events:none; background: var(--surface-1); color: var(--text-primary);
+    border: 1px solid var(--border); border-radius: 8px; padding: 7px 10px; font-size: 12px;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.15); z-index: 50; display:none; font-variant-numeric: tabular-nums;
+  }
+
+  .hg-footer { text-align:center; color: var(--text-muted); font-size: 11.5px; margin-top: 24px; }
+</style>
+
+<div class="hg-root" id="hgRoot">
+  <div class="hg-max">
+    <div class="hg-header">
+      <div>
+        <p class="hg-title">BTC HedgeGrid — Painel</p>
+        <p class="hg-subtitle" id="hgSubtitle">Nenhum dado carregado ainda</p>
+      </div>
+      <div class="hg-actions">
+        <span id="hgStateBadge"></span>
+        <button class="hg-btn ghost" id="hgThemeBtn" type="button">Tema</button>
+        <button class="hg-btn primary" id="hgLoadBtn" type="button">Carregar CSVs</button>
+        <button class="hg-btn ghost" id="hgAutoBtn" type="button" style="display:none;">Atualização automática: desligada</button>
+        <input type="file" id="hgFileInput" accept=".csv" multiple style="display:none;">
+      </div>
+    </div>
+
+    <div id="hgEmpty" class="hg-empty">
+      <p><strong>Como usar</strong></p>
+      <p>
+        O robô <code>BTC_HedgeGrid_EA</code> exporta dois arquivos CSV na pasta de dados
+        <strong>comum</strong> do terminal MT5 (compartilhada entre todos os terminais da máquina):
+        <br><code>Arquivo → Abrir pasta de dados → ../Common/Files/</code>
+      </p>
+      <p>
+        <code>BTCHedgeGrid_&lt;magic&gt;_status.csv</code> (snapshot atual) e
+        <code>BTCHedgeGrid_&lt;magic&gt;_trades.csv</code> (histórico de trades encerrados).
+      </p>
+      <p>Clique em <strong>Carregar CSVs</strong> e selecione os dois arquivos juntos.
+      Em navegadores baseados em Chromium, o painel também oferece atualização automática
+      (relê os arquivos a cada 10s sem precisar reabrir o seletor).</p>
+    </div>
+
+    <div id="hgContent" style="display:none;">
+      <div class="hg-grid" id="hgKpis"></div>
+
+      <div class="hg-section">
+        <h2>Pernas abertas</h2>
+        <div class="hint">Estado atual de cada lado do grid (compra / venda)</div>
+        <div id="hgSides"></div>
+      </div>
+
+      <div class="hg-section">
+        <h2>Resultado acumulado (realizado)</h2>
+        <div class="hint">Soma cumulativa do lucro/prejuízo de cada trade encerrado, na ordem de fechamento</div>
+        <div id="hgEquityChart"></div>
+      </div>
+
+      <div class="hg-cols2">
+        <div class="hg-section">
+          <h2>P/L diário</h2>
+          <div class="hint">Últimos 30 dias com atividade</div>
+          <div id="hgDailyChart"></div>
+        </div>
+        <div class="hg-section">
+          <h2>P/L semanal</h2>
+          <div class="hint">Últimas 12 semanas com atividade</div>
+          <div id="hgWeeklyChart"></div>
+        </div>
+      </div>
+
+      <div class="hg-section">
+        <h2>P/L mensal</h2>
+        <div class="hint">Últimos 12 meses com atividade</div>
+        <div id="hgMonthlyChart"></div>
+      </div>
+
+      <div class="hg-grid" id="hgStats"></div>
+
+      <div class="hg-section">
+        <h2>Trades recentes</h2>
+        <div class="hint" id="hgTableHint"></div>
+        <div class="hg-table-wrap">
+          <table class="hg-table">
+            <thead>
+              <tr><th>Fechamento</th><th>Lado</th><th>Ticket</th><th>Comentário</th><th>Volume</th><th>Abertura</th><th>Fechamento</th><th>Resultado</th><th>Motivo</th></tr>
+            </thead>
+            <tbody id="hgTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="hg-footer">BTC HedgeGrid EA — painel local, sem envio de dados a servidores externos.</div>
+  </div>
+</div>
+
+<div class="hg-tooltip" id="hgTooltip"></div>
+
+<script>
+(function () {
+  "use strict";
+
+  var state = { status: null, trades: [] };
+  var fileHandles = [];
+  var autoTimer = null;
+  var COLOR_BUY = getVar('--series-buy'), COLOR_SELL = getVar('--series-sell');
+  var COLOR_GOOD = '#0ca30c', COLOR_BAD = '#d03b3b';
+
+  function getVar(name) {
+    // read the CSS custom property regardless of current theme (resolved at paint time,
+    // so we just re-read on demand right before drawing SVGs)
+    return getComputedStyle(document.getElementById('hgRoot')).getPropertyValue(name).trim();
+  }
+
+  // ---------- Theme ----------
+  var root = document.getElementById('hgRoot');
+  var savedTheme = localStorage.getItem('hg-theme');
+  if (savedTheme) document.documentElement.setAttribute('data-theme', savedTheme);
+  document.getElementById('hgThemeBtn').addEventListener('click', function () {
+    var cur = document.documentElement.getAttribute('data-theme');
+    var next = cur === 'dark' ? 'light' : (cur === 'light' ? '' : 'dark');
+    if (next) document.documentElement.setAttribute('data-theme', next);
+    else document.documentElement.removeAttribute('data-theme');
+    localStorage.setItem('hg-theme', next);
+    if (state.status) render();
+  });
+
+  // ---------- CSV parsing ----------
+  function splitLines(text) {
+    return text.replace(/\r\n/g, '\n').split('\n').filter(function (l) { return l.trim().length > 0; });
+  }
+
+  function parseStatusCsv(text) {
+    var lines = splitLines(text);
+    var obj = {};
+    for (var i = 1; i < lines.length; i++) { // skip header "field,value"
+      var idx = lines[i].indexOf(',');
+      if (idx < 0) continue;
+      var key = lines[i].slice(0, idx).trim();
+      var val = lines[i].slice(idx + 1).trim();
+      obj[key] = val;
+    }
+    return obj;
+  }
+
+  function parseTradesCsv(text) {
+    var lines = splitLines(text);
+    if (lines.length < 1) return [];
+    var header = lines[0].split(',').map(function (h) { return h.trim(); });
+    var rows = [];
+    for (var i = 1; i < lines.length; i++) {
+      var cols = lines[i].split(',');
+      if (cols.length < header.length) continue;
+      var row = {};
+      for (var c = 0; c < header.length; c++) row[header[c]] = (cols[c] || '').trim();
+      row.volume = parseFloat(row.volume) || 0;
+      row.open_price = parseFloat(row.open_price) || 0;
+      row.close_price = parseFloat(row.close_price) || 0;
+      row.profit = parseFloat(row.profit) || 0;
+      row._date = parseCloseTime(row.close_time);
+      rows.push(row);
+    }
+    rows.sort(function (a, b) { return a._date - b._date; });
+    return rows;
+  }
+
+  function parseCloseTime(s) {
+    if (!s) return new Date(0);
+    var parts = s.split(' ');
+    var d = (parts[0] || '').split('.').map(Number);
+    var t = (parts[1] || '00:00').split(':').map(Number);
+    return new Date(d[0] || 1970, (d[1] || 1) - 1, d[2] || 1, t[0] || 0, t[1] || 0);
+  }
+
+  function pad2(n) { return (n < 10 ? '0' : '') + n; }
+  function dayKey(d) { return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()); }
+  function monthKey(d) { return d.getFullYear() + '-' + pad2(d.getMonth() + 1); }
+  function weekKey(d) {
+    var t = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    var day = (t.getDay() + 6) % 7; // segunda = 0
+    t.setDate(t.getDate() - day);
+    return t.getFullYear() + '-' + pad2(t.getMonth() + 1) + '-' + pad2(t.getDate());
+  }
+
+  function aggregate(trades, keyFn) {
+    var map = {};
+    trades.forEach(function (t) {
+      var k = keyFn(t._date);
+      if (!map[k]) map[k] = { key: k, profit: 0, count: 0, wins: 0 };
+      map[k].profit += t.profit;
+      map[k].count += 1;
+      if (t.profit >= 0) map[k].wins += 1;
+    });
+    var arr = Object.keys(map).map(function (k) { return map[k]; });
+    arr.sort(function (a, b) { return a.key.localeCompare(b.key); });
+    return arr;
+  }
+
+  // ---------- File loading ----------
+  var supportsFSA = 'showOpenFilePicker' in window;
+
+  function classify(name, text) {
+    if (/status/i.test(name)) state.status = parseStatusCsv(text);
+    else if (/trades/i.test(name)) state.trades = parseTradesCsv(text);
+  }
+
+  function afterLoad() {
+    document.getElementById('hgEmpty').style.display = 'none';
+    document.getElementById('hgContent').style.display = 'block';
+    render();
+  }
+
+  document.getElementById('hgLoadBtn').addEventListener('click', function () {
+    if (supportsFSA) {
+      window.showOpenFilePicker({
+        multiple: true,
+        types: [{ description: 'CSV', accept: { 'text/csv': ['.csv'] } }]
+      }).then(function (handles) {
+        fileHandles = handles;
+        return loadFromHandles();
+      }).then(function () {
+        document.getElementById('hgAutoBtn').style.display = 'inline-block';
+        afterLoad();
+      }).catch(function (e) { if (e && e.name !== 'AbortError') console.error(e); });
+    } else {
+      document.getElementById('hgFileInput').click();
+    }
+  });
+
+  function loadFromHandles() {
+    return Promise.all(fileHandles.map(function (h) {
+      return h.getFile().then(function (file) { return file.text().then(function (t) { classify(file.name, t); }); });
+    }));
+  }
+
+  document.getElementById('hgFileInput').addEventListener('change', function (ev) {
+    var files = Array.prototype.slice.call(ev.target.files || []);
+    var remaining = files.length;
+    if (remaining === 0) return;
+    files.forEach(function (file) {
+      var reader = new FileReader();
+      reader.onload = function () {
+        classify(file.name, reader.result);
+        remaining -= 1;
+        if (remaining === 0) afterLoad();
+      };
+      reader.readAsText(file);
+    });
+  });
+
+  var autoOn = false;
+  document.getElementById('hgAutoBtn').addEventListener('click', function () {
+    autoOn = !autoOn;
+    var btn = document.getElementById('hgAutoBtn');
+    if (autoOn) {
+      btn.textContent = 'Atualização automática: ligada (10s)';
+      autoTimer = setInterval(function () { loadFromHandles().then(render); }, 10000);
+    } else {
+      btn.textContent = 'Atualização automática: desligada';
+      clearInterval(autoTimer);
+    }
+  });
+
+  // ---------- SVG chart helpers ----------
+  var tooltip = document.getElementById('hgTooltip');
+  function showTip(html, evt) {
+    tooltip.innerHTML = html;
+    tooltip.style.display = 'block';
+    tooltip.style.left = (evt.clientX + 14) + 'px';
+    tooltip.style.top = (evt.clientY + 14) + 'px';
+  }
+  function hideTip() { tooltip.style.display = 'none'; }
+
+  function svgEl(tag, attrs) {
+    var el = document.createElementNS('http://www.w3.org/2000/svg', tag);
+    for (var k in attrs) el.setAttribute(k, attrs[k]);
+    return el;
+  }
+
+  function barChart(container, data, opts) {
+    container.innerHTML = '';
+    if (!data.length) { container.innerHTML = '<div style="color:var(--text-muted);font-size:13px;padding:20px 0;">Sem trades encerrados neste período ainda.</div>'; return; }
+
+    var w = Math.max(container.clientWidth || 640, 320), h = opts.height || 220;
+    var padL = 46, padR = 12, padT = 12, padB = 28;
+    var innerW = w - padL - padR, innerH = h - padT - padB;
+
+    var maxAbs = Math.max(1, Math.max.apply(null, data.map(function (d) { return Math.abs(d.profit); })));
+    var zeroY = padT + innerH / 2;
+    var scale = (innerH / 2 - 6) / maxAbs;
+
+    var svg = svgEl('svg', { width: '100%', height: h, viewBox: '0 0 ' + w + ' ' + h, class: 'hg-svg' });
+
+    svg.appendChild(svgEl('line', { x1: padL, x2: w - padR, y1: zeroY, y2: zeroY, class: 'axis-line' }));
+
+    var n = data.length;
+    var bw = Math.max(3, Math.min(28, innerW / n - 4));
+    var goodC = COLOR_GOOD, badC = COLOR_BAD;
+
+    data.forEach(function (d, i) {
+      var x = padL + (innerW * (i + 0.5) / n) - bw / 2;
+      var barH = Math.abs(d.profit) * scale;
+      var y = d.profit >= 0 ? zeroY - barH : zeroY;
+      var rect = svgEl('rect', {
+        x: x, y: y, width: bw, height: Math.max(1, barH),
+        rx: 2, fill: d.profit >= 0 ? goodC : badC, opacity: 0.92
+      });
+      rect.addEventListener('mousemove', function (evt) {
+        showTip('<strong>' + d.key + '</strong><br>Resultado: ' + fmtUsd(d.profit) +
+                '<br>Trades: ' + d.count + ' (' + d.wins + ' ganhos)', evt);
+      });
+      rect.addEventListener('mouseleave', hideTip);
+      svg.appendChild(rect);
+
+      if (n <= 14 || i % Math.ceil(n / 14) === 0) {
+        var lbl = svgEl('text', { x: x + bw / 2, y: h - 8, 'text-anchor': 'middle' });
+        lbl.textContent = shortLabel(d.key);
+        svg.appendChild(lbl);
+      }
+    });
+
+    var maxLbl = svgEl('text', { x: 4, y: padT + 10 }); maxLbl.textContent = fmtUsdShort(maxAbs); svg.appendChild(maxLbl);
+    var zeroLbl = svgEl('text', { x: 4, y: zeroY + 4 }); zeroLbl.textContent = '0'; svg.appendChild(zeroLbl);
+    var minLbl = svgEl('text', { x: 4, y: h - padB }); minLbl.textContent = '-' + fmtUsdShort(maxAbs); svg.appendChild(minLbl);
+
+    container.appendChild(svg);
+  }
+
+  function shortLabel(key) {
+    // "2026-07-28" -> "28/07" ; mantem "2026-07" como esta (mensal)
+    var parts = key.split('-');
+    if (parts.length === 3) return parts[2] + '/' + parts[1];
+    return key;
+  }
+
+  function lineChart(container, trades, opts) {
+    container.innerHTML = '';
+    if (!trades.length) { container.innerHTML = '<div style="color:var(--text-muted);font-size:13px;padding:20px 0;">Sem trades encerrados ainda.</div>'; return; }
+
+    var w = Math.max(container.clientWidth || 900, 320), h = opts.height || 240;
+    var padL = 54, padR = 16, padT = 16, padB = 26;
+    var innerW = w - padL - padR, innerH = h - padT - padB;
+
+    var cum = 0;
+    var pts = trades.map(function (t) { cum += t.profit; return { x: t._date, y: cum, t: t }; });
+
+    var minY = Math.min(0, Math.min.apply(null, pts.map(function (p) { return p.y; })));
+    var maxY = Math.max(0, Math.max.apply(null, pts.map(function (p) { return p.y; })));
+    if (minY === maxY) { minY -= 1; maxY += 1; }
+
+    var minX = pts[0].x.getTime(), maxX = pts[pts.length - 1].x.getTime();
+    if (minX === maxX) maxX = minX + 1;
+
+    function sx(t) { return padL + innerW * (t - minX) / (maxX - minX); }
+    function sy(v) { return padT + innerH - innerH * (v - minY) / (maxY - minY); }
+
+    var svg = svgEl('svg', { width: '100%', height: h, viewBox: '0 0 ' + w + ' ' + h, class: 'hg-svg' });
+
+    // gridlines (3)
+    for (var g = 0; g <= 2; g++) {
+      var gv = minY + (maxY - minY) * g / 2;
+      var gy = sy(gv);
+      svg.appendChild(svgEl('line', { x1: padL, x2: w - padR, y1: gy, y2: gy, class: 'grid-line' }));
+      var gl = svgEl('text', { x: 4, y: gy + 4 }); gl.textContent = fmtUsdShort(gv); svg.appendChild(gl);
+    }
+
+    var zeroY = sy(0);
+    svg.appendChild(svgEl('line', { x1: padL, x2: w - padR, y1: zeroY, y2: zeroY, class: 'axis-line' }));
+
+    var d = pts.map(function (p, i) { return (i === 0 ? 'M' : 'L') + sx(p.x.getTime()).toFixed(1) + ',' + sy(p.y).toFixed(1); }).join(' ');
+    svg.appendChild(svgEl('path', { d: d, fill: 'none', stroke: COLOR_BUY, 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }));
+
+    var last = pts[pts.length - 1];
+    svg.appendChild(svgEl('circle', { cx: sx(last.x.getTime()), cy: sy(last.y), r: 4, fill: last.y >= 0 ? COLOR_GOOD : COLOR_BAD }));
+
+    // invisible hover targets
+    pts.forEach(function (p) {
+      var hit = svgEl('circle', { cx: sx(p.x.getTime()), cy: sy(p.y), r: 8, fill: 'transparent' });
+      hit.addEventListener('mousemove', function (evt) {
+        showTip('<strong>' + p.t.close_time + '</strong><br>Acumulado: ' + fmtUsd(p.y) + '<br>Trade: ' + fmtUsd(p.t.profit) + ' (' + p.t.side + ')', evt);
+      });
+      hit.addEventListener('mouseleave', hideTip);
+      svg.appendChild(hit);
+    });
+
+    container.appendChild(svg);
+  }
+
+  function fmtUsd(v) { var s = (v >= 0 ? '+' : '') + v.toFixed(2); return s + ' USD'; }
+  function fmtUsdShort(v) { return (Math.abs(v) >= 1000 ? (v / 1000).toFixed(1) + 'k' : v.toFixed(0)); }
+
+  // ---------- Render ----------
+  function tile(container, label, value, sub, cls) {
+    var el = document.createElement('div');
+    el.className = 'hg-tile';
+    el.innerHTML = '<div class="lbl">' + label + '</div><div class="val ' + (cls || '') + '">' + value + '</div>' + (sub ? '<div class="sub">' + sub + '</div>' : '');
+    container.appendChild(el);
+  }
+
+  function stateBadge(stateName) {
+    var badge = document.getElementById('hgStateBadge');
+    var map = {
+      'HG_STATE_TRADING': ['ok', 'Operando'],
+      'HG_STATE_DAILY_LOSS': ['bad', 'Bloqueado: DailyLoss'],
+      'HG_STATE_DAILY_PROFIT': ['warn', 'Bloqueado: DailyGain'],
+      'HG_STATE_MAX_DRAWDOWN': ['bad', 'Bloqueado: Max Drawdown']
+    };
+    var m = map[stateName] || ['warn', stateName || '—'];
+    badge.innerHTML = '<span class="hg-badge ' + m[0] + '"><span class="dot"></span>' + m[1] + '</span>';
+  }
+
+  function render() {
+    // recompute palette vars in case theme changed
+    COLOR_BUY = getVar('--series-buy'); COLOR_SELL = getVar('--series-sell');
+
+    var s = state.status || {};
+    var trades = state.trades || [];
+
+    document.getElementById('hgSubtitle').textContent = s.updated_at ? ('Última atualização do robô: ' + s.updated_at) : 'Aguardando snapshot de status';
+    stateBadge(s.state);
+
+    var kpis = document.getElementById('hgKpis');
+    kpis.innerHTML = '';
+    tile(kpis, 'Equity', fmtNum(s.equity));
+    tile(kpis, 'Balance', fmtNum(s.balance));
+    tile(kpis, 'P/L do dia', (s.daily_pnl_pct != null ? Number(s.daily_pnl_pct).toFixed(2) + '%' : '—'),
+         (s.daily_pnl_usd != null ? fmtUsd(Number(s.daily_pnl_usd)) : ''), pnlClass(s.daily_pnl_usd));
+    tile(kpis, 'Drawdown do pico', (s.drawdown_pct != null ? Number(s.drawdown_pct).toFixed(2) + '%' : '—'));
+
+    var sides = document.getElementById('hgSides');
+    sides.innerHTML = '';
+    sides.appendChild(sideRow('Compra', COLOR_BUY, s, 'buy'));
+    sides.appendChild(sideRow('Venda', COLOR_SELL, s, 'sell'));
+
+    lineChart(document.getElementById('hgEquityChart'), trades, { height: 240 });
+
+    var daily = aggregate(trades, dayKey).slice(-30);
+    var weekly = aggregate(trades, weekKey).slice(-12);
+    var monthly = aggregate(trades, monthKey).slice(-12);
+    barChart(document.getElementById('hgDailyChart'), daily, { height: 200 });
+    barChart(document.getElementById('hgWeeklyChart'), weekly, { height: 200 });
+    barChart(document.getElementById('hgMonthlyChart'), monthly, { height: 200 });
+
+    renderStats(trades);
+    renderTable(trades);
+  }
+
+  function pnlClass(v) { v = Number(v); return v > 0 ? 'good' : (v < 0 ? 'bad' : ''); }
+  function fmtNum(v) { return v != null && v !== '' ? Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—'; }
+
+  function sideRow(name, color, s, prefix) {
+    var row = document.createElement('div');
+    row.className = 'hg-side-row';
+    var open = s[prefix + '_open'] != null ? s[prefix + '_open'] : '—';
+    var tierC = s[prefix + '_tier'] != null ? s[prefix + '_tier'] : '—';
+    var nextVol = s[prefix + '_next_volume'] != null ? s[prefix + '_next_volume'] : '—';
+    var avg = s[prefix + '_avg_price'] != null ? s[prefix + '_avg_price'] : '—';
+    var pnl = s[prefix + '_floating_pnl'];
+    row.innerHTML =
+      '<span class="name"><span class="swatch" style="background:' + color + '"></span>' + name + '</span>' +
+      '<span class="metrics">' +
+      '<span>Posições: <b>' + open + '</b></span>' +
+      '<span>Tier: <b>' + tierC + '</b></span>' +
+      '<span>Próx. vol: <b>' + nextVol + '</b></span>' +
+      '<span>Preço médio: <b>' + avg + '</b></span>' +
+      '<span>P/L flutuante: <b class="' + (pnl >= 0 ? 'hg-pl good' : 'hg-pl bad') + '">' + (pnl != null ? fmtUsd(Number(pnl)) : '—') + '</b></span>' +
+      '</span>';
+    return row;
+  }
+
+  function renderStats(trades) {
+    var box = document.getElementById('hgStats');
+    box.innerHTML = '';
+    var total = trades.length;
+    var wins = trades.filter(function (t) { return t.profit >= 0; });
+    var losses = trades.filter(function (t) { return t.profit < 0; });
+    var winRate = total ? (wins.length / total * 100) : 0;
+    var avgWin = wins.length ? wins.reduce(function (a, t) { return a + t.profit; }, 0) / wins.length : 0;
+    var avgLoss = losses.length ? losses.reduce(function (a, t) { return a + t.profit; }, 0) / losses.length : 0;
+    var totalProfit = trades.reduce(function (a, t) { return a + t.profit; }, 0);
+
+    tile(box, 'Trades encerrados', String(total));
+    tile(box, 'Taxa de acerto', winRate.toFixed(1) + '%', wins.length + ' ganhos / ' + losses.length + ' perdas');
+    tile(box, 'Ganho médio', fmtUsd(avgWin), '', 'good');
+    tile(box, 'Perda média', fmtUsd(avgLoss), '', 'bad');
+    tile(box, 'Resultado total', fmtUsd(totalProfit), '', pnlClass(totalProfit));
+  }
+
+  function renderTable(trades) {
+    var body = document.getElementById('hgTableBody');
+    body.innerHTML = '';
+    var hint = document.getElementById('hgTableHint');
+    hint.textContent = trades.length ? ('Mostrando os ' + Math.min(200, trades.length) + ' trades mais recentes de ' + trades.length + ' no total') : 'Nenhum trade encerrado ainda';
+
+    var recent = trades.slice(-200).slice().reverse();
+    recent.forEach(function (t) {
+      var tr = document.createElement('tr');
+      tr.innerHTML =
+        '<td>' + t.close_time + '</td>' +
+        '<td><span style="color:' + (t.side === 'BUY' ? COLOR_BUY : COLOR_SELL) + ';font-weight:600;">' + (t.side === 'BUY' ? 'Compra' : 'Venda') + '</span></td>' +
+        '<td>' + t.ticket + '</td>' +
+        '<td>' + t.comment + '</td>' +
+        '<td>' + t.volume.toFixed(2) + '</td>' +
+        '<td>' + t.open_price.toFixed(2) + '</td>' +
+        '<td>' + t.close_price.toFixed(2) + '</td>' +
+        '<td class="' + (t.profit >= 0 ? 'hg-pl good' : 'hg-pl bad') + '">' + fmtUsd(t.profit) + '</td>' +
+        '<td><span class="hg-reason ' + t.reason + '">' + t.reason + '</span></td>';
+      body.appendChild(tr);
+    });
+  }
+
+  window.addEventListener('resize', function () { if (state.status) render(); });
+})();
+</script>

@@ -1,7 +1,19 @@
 # BTC Trading EAs — Robôs de trade BTC para MetaTrader 5
 
-Duas Expert Advisors (EA) para negociação automatizada de BTCUSD no
-MetaTrader 5, em **conta Hedging**, compartilhando a mesma base de
+Expert Advisors (EA) para negociação automatizada de BTCUSD no
+MetaTrader 5, em **conta Hedging**.
+
+> 🔀 Além dos dois EAs descritos abaixo, o repositório também tem
+> [`BTC_HedgeGrid/`](BTC_HedgeGrid/README.md) — um terceiro projeto,
+> independente, de **hedge grid (martingale)**: mantém sempre uma
+> posição de compra e uma de venda abertas, adiciona posições no lado
+> perdedor a cada X pontos (dobrando o volume por tier) e escala o lado
+> ganhador com breakeven progressivo. Tem seu próprio painel web
+> (`BTC_HedgeGrid/Dashboard/index.html`). Veja o README daquela pasta
+> para a mecânica completa e os avisos de risco (é uma estratégia bem
+> mais agressiva que as duas abaixo).
+
+Os dois EAs abaixo compartilham a mesma base de
 segurança (DailyGain/DailyLoss, Max Drawdown, hedge de proteção) mas com
 estilos de operação diferentes — veja [`docs/strategy-research.md`](docs/strategy-research.md)
 para a pesquisa completa e o racional de design.
