@@ -116,11 +116,14 @@ public:
          if(originalTicket == 0)
             continue;
 
+         ulong hedgeTicket = m_pos.Ticket(); // capturar ANTES de trocar a selecao global abaixo
+
          if(!PositionSelectByTicket(originalTicket))
            {
-            ulong hedgeTicket = m_pos.Ticket();
-            m_trade.PositionClose(hedgeTicket);
-            PrintFormat("BTCHedgeEA: hedge #%I64u orfao (original #%I64u fechada) - encerrado", hedgeTicket, originalTicket);
+            if(m_trade.PositionClose(hedgeTicket))
+               PrintFormat("BTCHedgeEA: hedge #%I64u orfao (original #%I64u fechada) - encerrado", hedgeTicket, originalTicket);
+            else
+               PrintFormat("BTCHedgeEA: hedge #%I64u orfao (original #%I64u fechada) - FALHA ao encerrar, erro %d", hedgeTicket, originalTicket, GetLastError());
            }
         }
      }
@@ -188,12 +191,15 @@ public:
             continue; // ainda dentro do limite tolerado
 
          ulong originalTicket = m_pos.Ticket();
+         // Capturar volume/tipo AGORA: FindHedgeForOriginal() reutiliza o mesmo objeto
+         // m_pos internamente (seu proprio loop de SelectByIndex) e sobrescreveria a
+         // selecao atual se lidos depois da chamada.
+         double hedgeVolume = NormalizeHedgeVolume(m_pos.Volume() * m_hedgeRatio);
+         ENUM_POSITION_TYPE originalType = m_pos.PositionType();
+
          ulong existingHedge;
          if(FindHedgeForOriginal(originalTicket, existingHedge))
             continue; // já tem hedge
-
-         double hedgeVolume = NormalizeHedgeVolume(m_pos.Volume() * m_hedgeRatio);
-         ENUM_POSITION_TYPE originalType = m_pos.PositionType();
 
          m_trade.SetExpertMagicNumber(m_hedgeMagic);
          bool sent;
