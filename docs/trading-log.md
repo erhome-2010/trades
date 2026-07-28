@@ -74,3 +74,32 @@ Duas fases nesse dia, com configurações diferentes:
 - Considerar `InpMaxConcurrentPositions` menor ou intervalo mínimo entre trades — 4 perdas em ~45 minutos sugere possível overtrading em mercado de chicote.
 - Revisar se `InpRiskPercentPerTrade` (2%) está adequado dado o tamanho da conta (lotes caindo para 0.01 conforme a equity encolhe).
 - Alternativa a considerar mais adiante: rodar backtest no Strategy Tester (não feito ainda) para validar a estratégia com amostra muito maior antes de continuar só com dados ao vivo.
+
+### 2026-07-28 (segundo dia — 3 vendas simultâneas + bug de código encontrado)
+
+- Novo dia resetou o `P/L Diário` corretamente (0.00%), mas o EA ficou
+  **bloqueado por `MAX DRAWDOWN`** logo de manhã — mecanismo diferente do
+  DailyLoss: mede queda desde o **pico histórico de equity** ($31.15) e
+  não reseta por dia. Usuário elevou `InpMaxDrawdownPercent` para
+  continuar testando (valor a confirmar/registrar aqui quando informado).
+- Log do dia mostrou 3 vendas simultâneas abertas em barras M1
+  consecutivas (07:19-07:21) — comportamento esperado de
+  `InpMaxConcurrentPositions=3`, não bug. Ponto de atenção: as 3 eram na
+  **mesma direção** (o filtro de tendência só liberava venda nesse
+  trecho), ou seja, risco concentrado/triplicado no mesmo movimento, não
+  diversificado.
+- **Bug de código encontrado e corrigido** (`HedgeManager.mqh`,
+  `CleanupOrphanHedges`): ao fechar um hedge órfão (posição original já
+  encerrada), o ticket era lido *depois* de uma troca de contexto de
+  seleção de posição, sempre resultando em `0` — o fechamento falhava
+  silenciosamente e o mesmo hedge órfão era redetectado e retentado **em
+  loop infinito** (centenas de tentativas/seg no log). Como o hedge é
+  aberto sem SL/TP próprio, ele ficou exposto sem proteção até um circuit
+  breaker de emergência varrer tudo. Corrigido no commit `f7c0169`
+  (capturar o ticket antes da troca de contexto) — corrigido também um
+  bug relacionado de leitura de posição desatualizada em
+  `OpenHedgesWhereNeeded`. **Isso significa que os resultados do hedge
+  no dia 27/07 e início do dia 28/07 podem ter sido afetados por esse
+  bug** (hedge órfão sem proteção por um período) — considerar isso ao
+  analisar os números da semana na segunda-feira, e dar mais peso aos
+  resultados a partir da correção (commit `f7c0169`) em diante.
