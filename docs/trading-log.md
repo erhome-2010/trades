@@ -10,6 +10,23 @@ pelo menos ~10-15 trades novos sob a mesma configuração, ou 3+ pregões
 completos — o que vier primeiro. Antes disso, qualquer padrão observado é
 tratado como ruído, não sinal.
 
+## Segunda instância: XAUUSD (a partir de 2026-07-28)
+
+Mesmo EA (`BTC_Scalper_EA`), segunda instância anexada num gráfico de
+XAUUSD, rodando simultaneamente com a instância BTCUSD na mesma conta.
+
+| Parâmetro | Valor |
+|---|---|
+| `InpMagicNumber` | `880011` (diferente do `880001` da instância BTC) |
+| `InpMaxSpreadPoints` | `500` (ponto de partida, XAUUSD ~$4028; ajustar com o spread real visto no log) |
+| Demais parâmetros | Mesmos do `.set` do BTC como ponto de partida (BB 1.5, RSI 35/65, filtro de tendência M15/EMA50, etc.) |
+
+> **Atenção:** DailyLoss/DailyGain/MaxDrawdown são calculados sobre a
+> **equity da conta inteira** (não por símbolo) em cada instância. Rodando
+> BTC e XAUUSD juntos, uma perda forte num ativo pode acionar o circuit
+> breaker e travar a instância do outro também, mesmo que ela não tenha
+> contribuído para a perda.
+
 ## Configuração vigente (desde 2026-07-27, ~15h39)
 
 Arquivo: `MQL5/Presets/BTC_Scalper_EA_mais_operacoes.set` (com filtro de
