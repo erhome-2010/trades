@@ -44,6 +44,7 @@ MQL5/
   Experts/
     BTC_TrendHedge_EA.mq5       # EA de swing trend-following
     BTC_Scalper_EA.mq5          # EA de scalping por reversao a media
+    ERHOME_BTC_SCALPER.mq5      # Mesma logica do BTC_Scalper_EA, renomeado + painel proprio (sem CDashboard)
   Include/
     BTCHedgeEA/
       Defines.mqh               # enums e constantes compartilhadas
@@ -55,6 +56,15 @@ MQL5/
 docs/
   strategy-research.md          # pesquisa de estratégias de EAs de mercado
 ```
+
+> **`ERHOME_BTC_SCALPER.mq5`**: mesma estratégia, mesmos inputs e mesma
+> gestão de risco do `BTC_Scalper_EA.mq5` (nenhuma mudança de lógica) —
+> só o nome e o painel no gráfico foram refeitos, com um layout mais
+> compacto no estilo dos EAs ERHOME (fundo escuro, seções separadas por
+> linha, status colorido, e um resumo Hoje/Semana/Mês de trades e
+> resultado). Não depende de `Dashboard.mqh` (desenha o próprio painel),
+> então pode ser usado e evoluído sem afetar o `BTC_Scalper_EA.mq5` que já
+> está rodando ao vivo.
 
 ## Instalação no MetaEditor / MT5
 
