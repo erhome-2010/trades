@@ -30,7 +30,7 @@ tendência adicionado nesta versão).
 | `InpDailyLossPercent` (DL) | **20.0%** (ajustado manualmente em 27/07, subiu de 3%→10%→20% no mesmo dia; padrão de fábrica no código é 3.0%) |
 | `InpDailyProfitTargetUSD` (DG) | $10.00 |
 | `InpMaxDrawdownPercent` | 12.0% |
-| `InpUseHedgeProtection` | **true** (ligado manualmente em 27/07 à noite; padrão de fábrica no código é `false`) |
+| `InpUseHedgeProtection` | **false** (ligado em 27/07 à noite, desligado de novo em 28/07 após o bug de hedge órfão ser identificado; padrão de fábrica no código é `false`) |
 | `InpHedgeTriggerPercent` / `InpHedgeVolumeRatio` | 1.5% / 1.0 (valores padrão, não alterados) |
 | `InpHedgeRecoveryRatio` / `InpHedgeConvertRatio` | 0.3 / 1.2 (valores padrão, não alterados) |
 
