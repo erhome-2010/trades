@@ -18,8 +18,13 @@ XAUUSD, rodando simultaneamente com a instância BTCUSD na mesma conta.
 | Parâmetro | Valor |
 |---|---|
 | `InpMagicNumber` | `880011` (diferente do `880001` da instância BTC) |
-| `InpMaxSpreadPoints` | `500` (ponto de partida, XAUUSD ~$4028; ajustar com o spread real visto no log) |
-| Demais parâmetros | Mesmos do `.set` do BTC como ponto de partida (BB 1.5, RSI 35/65, filtro de tendência M15/EMA50, etc.) |
+| `InpMaxSpreadPoints` | `500` (ponto de partida, XAUUSD ~$4028; spread real medido no log: 36 pontos, bem folgado) |
+| Demais parâmetros | Alinhados ao `.set` do BTC (BB 1.5, RSI 35/65, filtro de tendência M15/EMA50, etc.) |
+
+> Nota: nos primeiros minutos (28/07 ~08:37), essa instância rodou
+> acidentalmente com os valores padrão de fábrica do RSI (25/75) por
+> esquecimento de carregar o `.set` — corrigido logo em seguida. Poucos
+> trades ou nenhum nesse intervalo, impacto mínimo esperado.
 
 > **Atenção:** DailyLoss/DailyGain/MaxDrawdown são calculados sobre a
 > **equity da conta inteira** (não por símbolo) em cada instância. Rodando
