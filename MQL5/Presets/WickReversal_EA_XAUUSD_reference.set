@@ -53,3 +53,4 @@ InpSlippagePoints=30
 InpEnableDashboard=true
 InpEnablePushNotify=false
 InpEnableEmailNotify=false
+InpVerboseLogging=true

@@ -611,6 +611,7 @@ XAUUSD/forex quanto em BTCUSD, só ajustando os valores.
 |---|---|---|
 | `InpEnableDashboard` | `true` | Painel no gráfico (estado, equity vs. referência, setup ativo de cada lado). |
 | `InpEnablePushNotify` / `InpEnableEmailNotify` | `false` / `false` | Notificações nos eventos importantes. |
+| `InpVerboseLogging` | `true` | Loga na aba **Experts** (não na "Diário") o motivo de cada vela fechada **não** gerar sinal — corpo/pavio calculados, se o filtro de MA passou/bloqueou, e o resultado de cada timeframe do scanner. É a forma de descobrir por que o EA "não está abrindo nada": normalmente é a exigência de confluência multi-timeframe (`InpUseAllTimeframeScanner`) que é bem rara de bater simultaneamente em 3-4 timeframes diferentes — desligue-a (ou reduza para 1 timeframe) para testar mais rápido se a lógica em si está correta antes de exigir a confluência completa. |
 
 ## Como funciona o hedge de proteção (`BTC_TrendHedge_EA` / `BTC_Scalper_EA`)
 

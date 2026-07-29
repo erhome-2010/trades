@@ -35,6 +35,7 @@ private:
 
    datetime        m_lastEntryBarTime;
    bool            m_evaluatedThisCall;
+   bool            m_verbose;
 
    // Retorna +1 (padrao de alta / bullish), -1 (padrao de baixa / bearish) ou 0 (nenhum)
    // avaliado na ultima vela FECHADA (shift=1) do timeframe informado.
@@ -75,6 +76,7 @@ public:
       m_maHandle          = INVALID_HANDLE;
       m_lastEntryBarTime  = 0;
       m_evaluatedThisCall = false;
+      m_verbose           = false;
       m_useScanner        = false;
       m_scanTf[0] = PERIOD_M1;  m_scanTf[1] = PERIOD_M5;  m_scanTf[2] = PERIOD_M15;
       m_scanTf[3] = PERIOD_M30; m_scanTf[4] = PERIOD_H1;  m_scanTf[5] = PERIOD_H4;
@@ -88,12 +90,14 @@ public:
              const bool useMaFilter,const ENUM_TIMEFRAMES maTimeframe,const int maPeriod,
              const ENUM_MA_METHOD maMethod,const ENUM_APPLIED_PRICE maPrice,
              const bool useScanner,const bool scanM1,const bool scanM5,const bool scanM15,
-             const bool scanM30,const bool scanH1,const bool scanH4,const bool scanD1)
+             const bool scanM30,const bool scanH1,const bool scanH4,const bool scanD1,
+             const bool verboseLogging = false)
      {
       m_symbol         = symbol;
       m_entryTimeframe = entryTimeframe;
       m_bodyMaxPercent = bodyMaxPercent;
       m_wickMinPercent = wickMinPercent;
+      m_verbose        = verboseLogging;
 
       m_useMaFilter = useMaFilter;
       m_maTimeframe = maTimeframe;
@@ -183,10 +187,27 @@ public:
       m_evaluatedThisCall = true;
 
       int pattern = PatternOnTimeframe(m_entryTimeframe);
+
+      if(m_verbose)
+        {
+         double o = iOpen(m_symbol, m_entryTimeframe, 1), h = iHigh(m_symbol, m_entryTimeframe, 1);
+         double l = iLow(m_symbol, m_entryTimeframe, 1), c = iClose(m_symbol, m_entryTimeframe, 1);
+         double range = h - l;
+         double bodyPct  = (range > 0.0) ? MathAbs(c - o) / range * 100.0 : 0.0;
+         double lowerPct = (range > 0.0) ? (MathMin(o, c) - l) / range * 100.0 : 0.0;
+         double upperPct = (range > 0.0) ? (h - MathMax(o, c)) / range * 100.0 : 0.0;
+         PrintFormat("WickReversalEA [debug] vela %s fechada: corpo=%.1f%% (limite<=%.1f%%) pavioInf=%.1f%% pavioSup=%.1f%% (limite>=%.1f%%) -> padrao=%d",
+                     EnumToString(m_entryTimeframe), bodyPct, m_bodyMaxPercent, lowerPct, upperPct, m_wickMinPercent, pattern);
+        }
+
       if(pattern == 0)
          return 0;
 
-      if(!TrendFilterAllows(pattern))
+      bool maOk = TrendFilterAllows(pattern);
+      if(m_verbose)
+         PrintFormat("WickReversalEA [debug] padrao=%d confirmado; filtro de MA (%s) = %s",
+                     pattern, (m_useMaFilter ? "ligado" : "desligado"), (maOk ? "PASSOU" : "BLOQUEOU"));
+      if(!maOk)
          return 0;
 
       if(m_useScanner)
@@ -196,10 +217,16 @@ public:
             if(!m_scanEnabled[i])
                continue;
             int scanPattern = PatternOnTimeframe(m_scanTf[i]);
+            if(m_verbose)
+               PrintFormat("WickReversalEA [debug] scanner %s = %d (precisa ser %d para confirmar)",
+                           EnumToString(m_scanTf[i]), scanPattern, pattern);
             if(scanPattern != pattern)
                return 0; // exige confluencia - qualquer timeframe habilitado que discordar cancela o sinal
            }
         }
+
+      if(m_verbose)
+         Print("WickReversalEA [debug] sinal CONFIRMADO em todos os filtros.");
 
       return pattern;
      }

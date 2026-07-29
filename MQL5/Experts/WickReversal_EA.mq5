@@ -127,6 +127,9 @@ input bool InpEnableDashboard   = true;   // Exibe painel no grafico
 input bool InpEnablePushNotify  = false;  // Envia push notification em eventos importantes
 input bool InpEnableEmailNotify = false;  // Envia e-mail em eventos importantes
 
+//--- Inputs: diagnostico
+input bool InpVerboseLogging = true;   // Loga no Diario/Experts o motivo de cada vela nao gerar sinal (corpo/pavio, filtro MA, scanner) - util para depurar por que nao esta operando
+
 //--- Objetos globais do EA
 CWickSignal     g_signal;
 CSetupManager   g_setup;
@@ -198,7 +201,7 @@ int OnInit(void)
    if(!g_signal.Init(_Symbol, InpEntryTimeframe, InpBodyMaximumPercent, InpWickMinimumPercent,
                       InpUseMAFilter, InpMATimeframe, InpMAPeriod, InpMAMethod, InpMAPrice,
                       InpUseAllTimeframeScanner, InpScanM1, InpScanM5, InpScanM15, InpScanM30,
-                      InpScanH1, InpScanH4, InpScanD1))
+                      InpScanH1, InpScanH4, InpScanD1, InpVerboseLogging))
       return(INIT_FAILED);
 
    g_setup.Configure(_Symbol, InpMagicNumber, InpEntryTimeframe,
