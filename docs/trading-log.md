@@ -18,6 +18,24 @@ a configuração "mais_operacoes" abaixo depois da análise do resultado de
 afrouxamento de sinal, encurta o filtro de tendência e aperta os
 circuit breakers diários para o tamanho atual da conta.
 
+> **Mudança de conta (2026-07-29, à noite): migrou para conta Cent
+> (1:1000).** Depósito de US$10 aparece como 1000 na moeda da conta —
+> multiplicador de **100** (1000/10). Isso importa porque
+> `InpTargetProfitUSD` e `InpDailyProfitTargetUSD` são calculados usando
+> o valor do tick **na moeda da conta** — sem ajuste, um alvo de "US$1"
+> viraria só 1 unidade da moeda da conta (≈ US$0,01 reais), fechando o
+> trade quase instantaneamente. Adicionado o input
+> **`InpCentAccountMultiplier`** (código: `BTC_Scalper_EA.mq5`, funções
+> `RealUsdToAccountCurrency`/`AccountCurrencyToRealUsd`) — os dois inputs
+> continuam digitados em **dólares reais** (não precisa recalcular nada
+> na mão), o EA converte internamente pelo multiplicador. Setado para
+> **100.0** no `.set` (padrão de fábrica continua `1.0`, i.e. conta
+> normal). **Requer recompilar o `.mq5` no MetaEditor** — é um input
+> novo, não só uma mudança de valor. As % (DailyLoss, DailyGain,
+> MaxDrawdown, Risco por trade) não precisaram de nenhum ajuste — já são
+> relativas à equity, então são automaticamente compatíveis com
+> qualquer conta Cent/Micro.
+
 | Parâmetro | Valor novo | Era | Por quê |
 |---|---|---|---|
 | `InpBBDeviation` | **2.0** | 1.5 | Volta ao valor mais seletivo — o afrouxamento para "mais operações" parece ter aumentado entradas de baixa qualidade, não sinais melhores. |

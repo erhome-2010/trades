@@ -11,6 +11,7 @@ InpTrendFilterTimeframe=5
 InpTrendFilterPeriod=20
 InpAtrSlMultiplier=1.5
 InpTargetProfitUSD=1.0
+InpCentAccountMultiplier=100.0
 InpRiskPercentPerTrade=2.0
 InpMaxConcurrentPositions=2
 InpMaxSpreadPoints=3000

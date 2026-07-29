@@ -47,7 +47,10 @@ input int                InpTrendFilterPeriod  = 50;          // Periodo da medi
 
 //--- Inputs: stop loss e alvo de lucro
 input double             InpAtrSlMultiplier    = 1.0;        // Stop Loss = ATR * multiplicador (mantenha apertado)
-input double             InpTargetProfitUSD    = 1.0;        // Alvo de lucro FIXO em dolares por trade (ex: 1.0 = tenta fechar em +$1)
+input double             InpTargetProfitUSD    = 1.0;        // Alvo de lucro FIXO em DOLARES REAIS por trade (ex: 1.0 = tenta fechar em +US$1) - convertido internamente pelo InpCentAccountMultiplier, nao precisa mexer aqui numa conta Cent
+
+//--- Inputs: conta Cent / Micro (conversao de moeda da conta)
+input double             InpCentAccountMultiplier = 1.0;     // Quantas unidades da moeda da conta equivalem a US$1 real. Conta padrao = 1.0. Conta Cent tipica = 100.0 (confira no seu extrato: se depositou US$10 e o saldo mostrou 1000, o multiplicador e 1000/10 = 100). Todos os alvos "em dolares" (InpTargetProfitUSD, InpDailyProfitTargetUSD) sao digitados em dolares REAIS e convertidos internamente por este valor - as % (DailyLoss, DailyGain, MaxDrawdown, Risco) NAO precisam de ajuste, ja sao relativas a equity.
 
 //--- Inputs: dimensionamento e concorrencia
 input double             InpRiskPercentPerTrade= 2.0;        // % da equity arriscado por trade (define o lote via distancia do SL)
@@ -108,6 +111,28 @@ bool SpreadOk(void)
   {
    long spreadPoints = SymbolInfoInteger(_Symbol, SYMBOL_SPREAD);
    return (InpMaxSpreadPoints <= 0 || spreadPoints <= InpMaxSpreadPoints);
+  }
+
+//+------------------------------------------------------------------+
+// Conversao entre dolares reais e a moeda da conta (conta Cent/Micro tem
+// InpCentAccountMultiplier > 1 - ex: 100 numa conta Cent onde US$10 = 1000
+// na moeda da conta). Equity/Balance/AccountInfoDouble() e SYMBOL_TRADE_TICK_VALUE
+// ja vem nativamente na moeda da conta - so os dois inputs digitados em
+// "dolares reais" (InpTargetProfitUSD, InpDailyProfitTargetUSD) precisam
+// passar por aqui antes de serem comparados/usados nos calculos.
+double CentMultiplier(void)
+  {
+   return (InpCentAccountMultiplier > 0.0) ? InpCentAccountMultiplier : 1.0;
+  }
+
+double RealUsdToAccountCurrency(const double realUsd)
+  {
+   return realUsd * CentMultiplier();
+  }
+
+double AccountCurrencyToRealUsd(const double accountCurrencyValue)
+  {
+   return accountCurrencyValue / CentMultiplier();
   }
 
 //+------------------------------------------------------------------+
@@ -200,7 +225,7 @@ void TryOpenNewPosition(void)
 
    double lots = g_risk.CalcLotByRisk(slDistance);
 
-   double tpDistance = ComputeTpDistanceForProfit(lots, InpTargetProfitUSD);
+   double tpDistance = ComputeTpDistanceForProfit(lots, RealUsdToAccountCurrency(InpTargetProfitUSD));
    if(tpDistance < minStop)
       tpDistance = minStop;
 
@@ -250,7 +275,7 @@ void UpdateDashboard(const ENUM_EA_STATE state)
          hedgeCount++;
      }
 
-   double dailyProfitUSD = AccountInfoDouble(ACCOUNT_EQUITY) - g_risk.DailyBaseline();
+   double dailyProfitUSD = AccountCurrencyToRealUsd(AccountInfoDouble(ACCOUNT_EQUITY) - g_risk.DailyBaseline());
    string extra = StringFormat("Trades hoje: %d   Meta DG: $%.2f (atual $%.2f)", g_tradesToday, InpDailyProfitTargetUSD, dailyProfitUSD);
 
    g_dash.Update("BTC Scalper EA", state, g_risk.DailyPnLPercent(), g_risk.DrawdownFromPeakPercent(),
@@ -263,8 +288,8 @@ bool DailyProfitTargetUSDHit(void)
   {
    if(InpDailyProfitTargetUSD <= 0.0)
       return false;
-   double dailyProfitUSD = AccountInfoDouble(ACCOUNT_EQUITY) - g_risk.DailyBaseline();
-   return dailyProfitUSD >= InpDailyProfitTargetUSD;
+   double dailyProfitAccountCcy = AccountInfoDouble(ACCOUNT_EQUITY) - g_risk.DailyBaseline();
+   return dailyProfitAccountCcy >= RealUsdToAccountCurrency(InpDailyProfitTargetUSD);
   }
 
 //+------------------------------------------------------------------+
@@ -301,8 +326,10 @@ int OnInit(void)
    g_tradesToday = 0;
    g_tradesDay   = 0;
 
-   PrintFormat("BTCScalperEA inicializado. Magic=%I64d HedgeMagic=%I64d Symbol=%s TF=%s Alvo=$%.2f",
-               InpMagicNumber, g_hedgeMagic, _Symbol, EnumToString(InpEntryTimeframe), InpTargetProfitUSD);
+   PrintFormat("BTCScalperEA inicializado. Magic=%I64d HedgeMagic=%I64d Symbol=%s TF=%s Alvo=US$%.2f (=%.2f na moeda da conta, multiplicador=%.1f) DG diario=US$%.2f (=%.2f na moeda da conta)",
+               InpMagicNumber, g_hedgeMagic, _Symbol, EnumToString(InpEntryTimeframe), InpTargetProfitUSD,
+               RealUsdToAccountCurrency(InpTargetProfitUSD), CentMultiplier(),
+               InpDailyProfitTargetUSD, RealUsdToAccountCurrency(InpDailyProfitTargetUSD));
    return(INIT_SUCCEEDED);
   }
 
