@@ -6,6 +6,14 @@ segurança (DailyGain/DailyLoss, Max Drawdown) mas com estilos de
 operação bem diferentes — veja [`docs/strategy-research.md`](docs/strategy-research.md)
 para a pesquisa completa e o racional de design dos dois primeiros.
 
+> 🕯️ Além dos três EAs de BTC, o repositório tem um quarto EA
+> **genérico** (qualquer símbolo/timeframe, ajustado por pips):
+> [`WickReversal_EA`](#wickreversal_ea--parâmetros-completos-inputs) —
+> reproduz a **estrutura de recursos** de uma EA comercial de
+> "wick rejection" (padrão de vela + filtro de média móvel +
+> confluência multi-timeframe + pirâmide em tiers + proteção de
+> equity), com implementação própria. Veja a seção dedicada mais abaixo.
+
 | | `BTC_TrendHedge_EA` | `BTC_Scalper_EA` | `BTC_HedgeGrid_EA` |
 |---|---|---|---|
 | Estilo | Trend-following (swing) | Reversão à média (scalping) | **Hedge grid / martingale** |
@@ -59,9 +67,18 @@ MQL5/
       GridManager.mqh           # nucleo: pernas de compra/venda, grid, volume por tier, gain/loss, breakeven
       TradeLogger.mqh           # exporta CSVs (Common\Files) para o painel web do HedgeGrid
       Dashboard.mqh             # painel no grafico do HedgeGrid
+    WickReversalEA/              # include proprio do WickReversal (generico, qualquer simbolo)
+      Defines.mqh               # enums e estruturas do WickReversal
+      PipUtils.mqh              # conversao pips <-> preco, independente do simbolo
+      WickSignal.mqh            # deteccao do padrao de rejeicao de pavio + filtro MA + scanner multi-TF
+      SetupManager.mqh          # nucleo: ordens pendentes, tiers, lote por piramide, expiracao
+      PositionManager.mqh       # breakeven e trailing stop por posicao
+      EquityGuard.mqh           # meta de lucro / protecao de drawdown de equity, com reinicio opcional
+      Dashboard.mqh             # painel no grafico do WickReversal
   Presets/
     BTC_Scalper_EA_mais_operacoes.set          # config usada até 29/07 (ver docs/trading-log.md)
     BTC_Scalper_EA_calibrado_2026-07-29.set    # config vigente apos analise do 2o pregao
+    WickReversal_EA_XAUUSD_reference.set       # replica os valores do print de referencia (ver secao WickReversal_EA)
 Dashboard/
   BTC_HedgeGrid.html             # painel web standalone do HedgeGrid (abrir localmente no navegador)
 docs/
@@ -102,6 +119,22 @@ tem um painel web próprio:
    local, sem servidor) para acompanhar o robô com gráficos diários,
    semanais e mensais — veja a seção "Painel web do HedgeGrid" mais
    abaixo para os detalhes.
+
+### Instalando o `WickReversal_EA`
+
+Diferente dos outros três, este EA **não é específico de BTC** — funciona
+em qualquer símbolo/timeframe (testado conceitualmente contra XAUUSD,
+mas serve para BTCUSD também), porque todas as distâncias são em
+"pips" (auto-detectados a partir dos dígitos do símbolo).
+
+1. Copie `MQL5/Include/WickReversalEA/` para
+   `<pasta de dados>/MQL5/Include/WickReversalEA/`.
+2. Copie `MQL5/Experts/WickReversal_EA.mq5` para
+   `<pasta de dados>/MQL5/Experts/`.
+3. Compile e arraste para o gráfico do símbolo desejado (conta em modo
+   **Hedging**, como os outros).
+4. Para reproduzir a configuração do print de referência, carregue
+   `MQL5/Presets/WickReversal_EA_XAUUSD_reference.set` na aba Inputs.
 
 ## `BTC_TrendHedge_EA` — Parâmetros completos (inputs)
 
@@ -427,11 +460,164 @@ preço médio, P/L flutuante), gráfico de resultado acumulado, P/L
 diário/semanal/mensal, taxa de acerto, ganho/perda médios e a tabela
 dos trades mais recentes com o motivo do fechamento (TP, SL, etc.).
 
+## `WickReversal_EA` — Parâmetros completos (inputs)
+
+> **Sobre a origem deste EA:** foi construído a partir da **estrutura de
+> parâmetros** observada no `.set` de uma EA comercial ("AI Monster
+> Premium"), a pedido do usuário, para ter algo equivalente em recursos.
+> **Não é uma cópia do código-fonte daquele produto** — o código-fonte
+> não estava disponível, só a lista de inputs. A lógica de cada peça
+> (o que exatamente conta como "vela de rejeição", como a pirâmide de
+> lote funciona, etc.) é uma **implementação própria**, escolhida por
+> ser uma leitura razoável e tecnicamente sólida de cada nome de
+> parâmetro — pode ou não coincidir com o comportamento exato do
+> produto original.
+
+Diferente dos outros três EAs deste repositório, este **não é
+específico de BTC**: todas as distâncias são em "pips" (10 pontos em
+símbolos de 3/5 casas decimais, 1 ponto em símbolos de 2/4 casas — a
+convenção padrão de mercado), então o mesmo `.mq5` funciona tanto em
+XAUUSD/forex quanto em BTCUSD, só ajustando os valores.
+
+### Como funciona
+
+1. **Sinal — vela de rejeição de pavio ("pin bar")**: no timeframe de
+   entrada, procura uma vela com corpo pequeno (`InpBodyMaximumPercent`,
+   padrão ≤20% do range máxima-mínima) e um pavio grande do lado
+   contrário à direção do sinal (`InpWickMinimumPercent`, padrão ≥60% do
+   range) — pavio inferior grande = sinal de compra (rejeitou queda),
+   pavio superior grande = sinal de venda (rejeitou alta).
+2. **Filtro de tendência**: se `InpUseMAFilter=true`, só aceita compra
+   com o preço acima da média (`InpMATimeframe`/`InpMAPeriod`/`InpMAMethod`/`InpMAPrice`)
+   e só venda com o preço abaixo.
+3. **Confluência multi-timeframe**: se `InpUseAllTimeframeScanner=true`,
+   exige que o **mesmo padrão, na mesma direção**, também apareça na
+   última vela fechada de cada timeframe habilitado (`InpScanM1` … `InpScanD1`)
+   — quanto mais timeframes habilitados, mais seletivo (e mais raro) o sinal.
+4. **Tier 1 — ordens pendentes**: confirmado o sinal, abre
+   `InpFirstEntryOrders` ordens **pendentes stop** no rompimento do
+   fechamento da vela de rejeição + `InpBreakClosePips`. Se não
+   preencherem em `InpCancelPendingAfterCandles` velas, são canceladas.
+5. **Tiers 2 e 3 — pirâmide a favor**: uma vez preenchida a tier 1, se o
+   preço avançar `InpProfitStepPips` a favor, abre `InpSecondEntryOrders`
+   ordens **a mercado** (lote maior, ver abaixo); avançando de novo,
+   abre `InpThirdEntryOrders`. **Só adiciona a favor de uma tier já
+   confirmada — nunca faz média no lado perdedor** (é pirâmide de
+   tendência, não é martingale, diferente do `BTC_HedgeGrid_EA`).
+6. **Lote por tier**: se `InpUseAutoLot=true`, lote da tier N =
+   `InpInitialLot + N × InpLotIncreasePerStep` (limitado por
+   `InpMaximumLot`); se `false`, todas as ordens usam `InpManualLotSize`.
+7. **SL/TP, breakeven e trailing**: cada posição recebe Stop Loss/Take
+   Profit fixos em pips (`InpStopLossPips`/`InpTakeProfitPips`) a partir
+   da própria entrada; breakeven e trailing (opcionais) são geridos por
+   posição, independente da tier.
+8. **Proteção de equity**: meta de lucro (`InpUseEquityProfitTarget`) e
+   proteção de drawdown (`InpUseEquityProtection`), ambas medidas contra
+   uma equity de referência definida ao iniciar o EA. Cada uma pode
+   **reiniciar sozinha** (fecha tudo, redefine a referência para a
+   equity atual, e continua operando) ou **travar permanentemente** até
+   o usuário reiniciar o EA manualmente — controlado por
+   `InpRestartAfterEquityTarget`/`InpRestartAfterEquityProtection`.
+
+### Direção e concorrência de setups
+
+| Parâmetro | Padrão | O que é |
+|---|---|---|
+| `InpDirectionMode` | `BOTH` | Restringe a só compra (`BUY_ONLY`), só venda (`SELL_ONLY`), ou permite ambas. |
+| `InpBlockOppositeDirection` | `true` | Enquanto houver um setup ativo (posições ou pendentes) de um lado, bloqueia abrir um novo na direção oposta. |
+| `InpOneSetupAtTime` | `false` | Se `true`, só permite um setup ativo por vez, **em qualquer direção** — espera tudo ficar flat antes de aceitar um novo sinal. |
+
+### Horário de negociação
+
+| Parâmetro | Padrão | O que é |
+|---|---|---|
+| `InpUseTradingTime` | `false` | Habilita a janela de horário (hora do servidor). |
+| `InpStartHour`/`InpStartMinute` | `8` / `0` | Início da janela permitida. |
+| `InpEndHour`/`InpEndMinute` | `17` / `0` | Fim da janela permitida (janelas que cruzam a meia-noite são suportadas). |
+
+### Filtro de média móvel
+
+| Parâmetro | Padrão | O que é |
+|---|---|---|
+| `InpUseMAFilter` | `true` | Habilita o filtro de tendência. |
+| `InpMATimeframe` | `M1` | Timeframe da média. |
+| `InpMAPeriod` | `200` | Período. |
+| `InpMAMethod` | `EMA` | Método (SMA/EMA/SMMA/LWMA — enum nativo do MT5). |
+| `InpMAPrice` | `Close` | Preço aplicado (enum nativo do MT5). |
+
+### Tamanho de lote e pirâmide
+
+| Parâmetro | Padrão | O que é |
+|---|---|---|
+| `InpUseAutoLot` | `true` | `true` = lote cresce por tier; `false` = `InpManualLotSize` fixo em todas as ordens. |
+| `InpManualLotSize` | `0.01` | Usado só se `InpUseAutoLot=false`. |
+| `InpInitialLot` | `0.01` | Lote da tier 1. |
+| `InpProfitStepPips` | `20.0` | Pips de avanço a favor para liberar a próxima tier. |
+| `InpLotIncreasePerStep` | `0.01` | Incremento de lote por tier. |
+| `InpMaximumLot` | `10.0` | Teto de lote por ordem. |
+| `InpFirstEntryOrders`/`InpSecondEntryOrders`/`InpThirdEntryOrders` | `2`/`2`/`2` | Quantidade de ordens por tier (`0` desabilita a tier). |
+
+### Padrão de vela e execução
+
+| Parâmetro | Padrão | O que é |
+|---|---|---|
+| `InpEntryTimeframe` | `M1` | Timeframe onde o padrão principal é avaliado. |
+| `InpBodyMaximumPercent` | `20.0` | Corpo da vela ≤ X% do range. |
+| `InpWickMinimumPercent` | `60.0` | Pavio de rejeição ≥ X% do range. |
+| `InpBreakClosePips` | `1.0` | Pips além do fechamento da vela para o preço de disparo da ordem pendente. |
+| `InpCancelPendingAfterCandles` | `20` | Cancela a pendente se não preencher em X velas. |
+| `InpStopLossPips` / `InpTakeProfitPips` | `300` / `1000` | SL/TP fixos em pips, por posição. |
+
+### Breakeven e trailing stop
+
+| Parâmetro | Padrão | O que é |
+|---|---|---|
+| `InpUseBreakEven` | `false` | Habilita o breakeven automático. |
+| `InpBreakEvenAfterPips` | `20` | Aciona ao atingir X pips de lucro. |
+| `InpBreakEvenPlusPips` | `0` | Pips travados além da entrada. |
+| `InpUseTrailingStop` | `true` | Habilita o trailing stop. |
+| `InpTrailingStartPips` | `100` | Só começa após X pips de lucro. |
+| `InpTrailingDistancePips` | `100` | Distância mantida em relação ao preço atual. |
+| `InpTrailingStepPips` | `1` | Incremento mínimo entre ajustes. |
+
+### Scanner multi-timeframe
+
+| Parâmetro | Padrão | O que é |
+|---|---|---|
+| `InpUseAllTimeframeScanner` | `true` | Exige confluência do padrão nos timeframes habilitados abaixo. |
+| `InpScanM1` … `InpScanD1` | `M15`/`M30`/`H1` habilitados, resto `false` | Quais timeframes participam da confluência. |
+
+### Proteção de equity
+
+| Parâmetro | Padrão | O que é |
+|---|---|---|
+| `InpUseEquityProfitTarget` | `false` | Habilita a meta de lucro. |
+| `InpEquityProfitTarget` | `100.0` | % de lucro sobre a equity de referência que aciona a meta. |
+| `InpRestartAfterEquityTarget` | `true` | `true` = fecha tudo e continua (nova referência); `false` = fecha tudo e trava até reiniciar o EA. |
+| `InpUseEquityProtection` | `false` | Habilita a proteção de drawdown. |
+| `InpMaxEquityDrawdownPercent` | `10.0` | % de queda sobre a equity de referência que aciona a proteção. |
+| `InpRestartAfterEquityProtection` | `false` | Mesma lógica de restart, para a proteção. |
+
+> Diferente do `InpDailyLossPercent`/`InpMaxDrawdownPercent` dos outros
+> três EAs (que resetam por dia ou medem contra o pico histórico), a
+> equity de referência aqui é definida **uma vez, ao iniciar o EA**
+> (`OnInit`) — e só muda de novo se uma das proteções acima disparar com
+> restart habilitado. Reiniciar o EA manualmente também redefine a
+> referência.
+
+### Painel e notificações
+
+| Parâmetro | Padrão | O que é |
+|---|---|---|
+| `InpEnableDashboard` | `true` | Painel no gráfico (estado, equity vs. referência, setup ativo de cada lado). |
+| `InpEnablePushNotify` / `InpEnableEmailNotify` | `false` / `false` | Notificações nos eventos importantes. |
+
 ## Como funciona o hedge de proteção (`BTC_TrendHedge_EA` / `BTC_Scalper_EA`)
 
 Não é grid nem martingale (não aumenta volume progressivamente) — essa
-seção é sobre os dois EAs acima; o `BTC_HedgeGrid_EA` descrito
-imediatamente acima tem sua própria lógica (grid/martingale de fato).
+seção é sobre os dois primeiros EAs (`BTC_TrendHedge_EA`/`BTC_Scalper_EA`);
+o `BTC_HedgeGrid_EA` e o `WickReversal_EA` descritos acima têm suas
+próprias lógicas (grid/martingale e pirâmide em tiers, respectivamente).
 Quando uma posição principal atinge perda flutuante ≥
 `InpHedgeTriggerPercent` da equity:
 
@@ -455,11 +641,12 @@ foi possível baixar o instalador do MT5 nem conectar ao servidor do
 usuário para compilar/testar remotamente. Por decisão do usuário, o
 trabalho desta sessão ficou restrito a código + pesquisa de estratégias;
 a compilação e os backtestes ficam por conta do usuário, no seu próprio
-MetaEditor/MT5. Isso vale para os três EAs, incluindo o
-`BTC_HedgeGrid_EA`. O painel web `Dashboard/BTC_HedgeGrid.html` foi
-testado neste ambiente (Chromium headless, com CSVs de exemplo) e
-renderiza corretamente nos temas claro e escuro, sem erros de console —
-mas o EA em si (`.mq5`/`.mqh`) segue sem compilação real.
+MetaEditor/MT5. Isso vale para os quatro EAs, incluindo o
+`BTC_HedgeGrid_EA` e o `WickReversal_EA`. O painel web
+`Dashboard/BTC_HedgeGrid.html` foi testado neste ambiente (Chromium
+headless, com CSVs de exemplo) e renderiza corretamente nos temas claro
+e escuro, sem erros de console — mas o EA em si (`.mq5`/`.mqh`) segue
+sem compilação real, para todos os EAs deste repositório.
 
 ## Próximos passos sugeridos
 
@@ -480,3 +667,9 @@ mas o EA em si (`.mq5`/`.mqh`) segue sem compilação real.
    que uma martingale sofre mais — e conferir a estimativa de "pior caso
    por lado" contra o tamanho real da conta antes de aumentar
    `InpBaseVolume`.
+6. Para o `WickReversal_EA`: validar em backtest se a detecção de "pin
+   bar" (implementação própria, não o código original de referência)
+   realmente captura o comportamento esperado antes de comparar
+   resultados com o produto que inspirou a estrutura de parâmetros;
+   ajustar `InpBodyMaximumPercent`/`InpWickMinimumPercent` conforme o
+   símbolo/timeframe.
