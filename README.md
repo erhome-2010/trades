@@ -60,7 +60,8 @@ MQL5/
       TradeLogger.mqh           # exporta CSVs (Common\Files) para o painel web do HedgeGrid
       Dashboard.mqh             # painel no grafico do HedgeGrid
   Presets/
-    BTC_Scalper_EA_mais_operacoes.set
+    BTC_Scalper_EA_mais_operacoes.set          # config usada até 29/07 (ver docs/trading-log.md)
+    BTC_Scalper_EA_calibrado_2026-07-29.set    # config vigente apos analise do 2o pregao
 Dashboard/
   BTC_HedgeGrid.html             # painel web standalone do HedgeGrid (abrir localmente no navegador)
 docs/
